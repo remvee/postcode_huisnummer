@@ -61,23 +61,53 @@ defmodule PostcodeHuisnummer do
   def stream_http do
     Stream.resource(
       fn ->
-        {:ok, id} = :httpc.request(:get, {'http://localhost/~me/bag.csv', []}, [], [{:stream, :self}, {:sync, false}])
-        {id, ""}
+        {:ok, id} = :httpc.request(:get, {'http://localhost/~me/bag.csv.gz', []}, [], [{:stream, :self}, {:sync, false}])
+        z = :zlib.open()
+        :zlib.inflateInit(z, 16 + 15)
+        :zlib.setBufSize(z, 512 * 1024)
+        {id, z}
       end,
-      fn {id, rest} ->
-        receive do
-          {:http, {id, :stream_start, _}} ->
-            {[], {id, rest}}
-          {:http, {id, :stream, chunk}} ->
-            lines = String.split(chunk, "\n")
-            {Enum.take(lines, Enum.count(lines) - 1), {id, Enum.drop(lines, Enum.count(lines) -1)}}
-          {:http, {id, :stream_end, _}} ->
-            {:halt, {id, rest}}
+      fn
+        {id, z, :more} ->
+          doChunk(id, z, :zlib.inflateChunk(z))
+        {id, z} ->
+          receive do
+          {:http, {^id, :stream_start, x}} ->
+            {[], {id, z}}
+          {:http, {^id, :stream, data}} ->
+            doChunk(id, z, :zlib.inflateChunk(z, data))
+          {:http, {^id, :stream_end, _}} ->
+            {:halt, {id, z}}
         end
       end,
-      fn id ->
-        IO.inspect("ended")
+      fn
+        {id, z} ->
+          :zlib.close(z)
+        :httpc.cancel_request(id)
       end
     )
+  end
+
+  def gunzip_stream(stream) do
+    Stream.transform(
+      stream,
+      fn ->
+        z = :zlib.open()
+        # http://stackoverflow.com/questions/1838699/how-can-i-decompress-a-gzip-stream-with-zlib
+        :zlib.inflateInit(z, 31)
+        :zlib.setBufSize(z, 512 * 1024)
+        z
+      end,
+      fn data, z -> {[doInflateChunk(z, :zlib.inflateChunk(z, data))], z} end,
+      fn z -> :zlib.close(z) end
+    )
+  end
+
+  defp doInflateChunk(z, {:more, chunk}) do
+    chunk <> doInflateChunk(z, :zlib.inflateChunk(z))
+  end
+
+  defp doInflateChunk(_, chunk) do
+    chunk
   end
 end
