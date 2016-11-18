@@ -30,32 +30,54 @@ defmodule PostcodeHuisnummer do
   end
 
   def import_bag do
-    PostcodeHuisnummer.Repo.delete_all(PostcodeHuisnummer.Address)
+    PostcodeHuisnummer.Repo.delete_all(PostcodeHuisnummer.BagAdres)
 
     File.stream!('bagadres.csv') |>
       CSV.Decoder.decode(separator: ?;, headers: true) |>
       Stream.map(
-        fn %{"postcode" => zip_code,
-             "huisnummer" => house_number,
-             "openbareruimte" => street_name,
-             "woonplaats" => city,
-             "lat" => latitude,
-              "lon" => longitude} ->
-            %{
-              zip_code: zip_code,
-              house_number: String.to_integer(house_number),
-              street_name: street_name,
-              city: city,
-              latitude: String.to_float(latitude),
-              longitude: String.to_float(longitude),
-              inserted_at: Ecto.DateTime.from_erl(:calendar.universal_time),
-              updated_at: Ecto.DateTime.from_erl(:calendar.universal_time)}
+        fn rec ->
+          rec |>
+            Map.update!("huisnummer", fn x -> String.to_integer(x) end) |>
+            Map.update!("object_id", fn x -> String.to_integer(x) end) |>
+            Map.update!("x", fn x -> Float.parse(x) |> elem(0) end) |>
+            Map.update!("y", fn x -> Float.parse(x) |> elem(0) end) |>
+            Map.update!("lat", fn x -> Float.parse(x) |> elem(0) end) |>
+            Map.update!("lon", fn x -> Float.parse(x) |> elem(0) end) |>
+            Map.put("inserted_at", Ecto.DateTime.from_erl(:calendar.universal_time)) |>
+            Map.put("updated_at", Ecto.DateTime.from_erl(:calendar.universal_time))
         end) |>
-      Stream.chunk(1000) |>
+      Stream.map(
+        fn rec ->
+          for {k, v} <- rec, into: %{}, do: {String.to_atom(k), v}
+        end) |>
+      Stream.chunk(100) |>
       Stream.each(
         fn recs ->
-          PostcodeHuisnummer.Repo.insert_all(PostcodeHuisnummer.Address, recs)
+          PostcodeHuisnummer.Repo.insert_all(PostcodeHuisnummer.BagAdres, recs)
         end) |>
       Stream.run
+  end
+
+  def stream_http do
+    Stream.resource(
+      fn ->
+        {:ok, id} = :httpc.request(:get, {'http://localhost/~me/bag.csv', []}, [], [{:stream, :self}, {:sync, false}])
+        {id, ""}
+      end,
+      fn {id, rest} ->
+        receive do
+          {:http, {id, :stream_start, _}} ->
+            {[], {id, rest}}
+          {:http, {id, :stream, chunk}} ->
+            lines = String.split(chunk, "\n")
+            {Enum.take(lines, Enum.count(lines) - 1), {id, Enum.drop(lines, Enum.count(lines) -1)}}
+          {:http, {id, :stream_end, _}} ->
+            {:halt, {id, rest}}
+        end
+      end,
+      fn id ->
+        IO.inspect("ended")
+      end
+    )
   end
 end
