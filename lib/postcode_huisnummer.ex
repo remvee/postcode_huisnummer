@@ -58,31 +58,23 @@ defmodule PostcodeHuisnummer do
       Stream.run
   end
 
-  def stream_http do
+  def stream_http(url) do
     Stream.resource(
       fn ->
-        {:ok, id} = :httpc.request(:get, {'http://localhost/~me/bag.csv.gz', []}, [], [{:stream, :self}, {:sync, false}])
-        z = :zlib.open()
-        :zlib.inflateInit(z, 16 + 15)
-        :zlib.setBufSize(z, 512 * 1024)
-        {id, z}
+        {:ok, id} = :httpc.request(:get, {url, []}, [], [{:stream, :self}, {:sync, false}])
+        id
       end,
-      fn
-        {id, z, :more} ->
-          doChunk(id, z, :zlib.inflateChunk(z))
-        {id, z} ->
-          receive do
-          {:http, {^id, :stream_start, x}} ->
-            {[], {id, z}}
+      fn id ->
+        receive do
+          {:http, {^id, :stream_start, _}} ->
+            {[], id}
           {:http, {^id, :stream, data}} ->
-            doChunk(id, z, :zlib.inflateChunk(z, data))
+            {[data], id}
           {:http, {^id, :stream_end, _}} ->
-            {:halt, {id, z}}
+            {:halt, id}
         end
       end,
-      fn
-        {id, z} ->
-          :zlib.close(z)
+      fn id ->
         :httpc.cancel_request(id)
       end
     )
@@ -109,5 +101,16 @@ defmodule PostcodeHuisnummer do
 
   defp doInflateChunk(_, chunk) do
     chunk
+  end
+
+  def split_lines_stream(stream) do
+    Stream.transform(
+      stream,
+      "",
+      fn chunk, rest ->
+        lines = String.split(rest <> chunk, "\n")
+        {Enum.take(lines, Enum.count(lines) - 1), Enum.at(lines, -1)}
+      end
+    )
   end
 end
