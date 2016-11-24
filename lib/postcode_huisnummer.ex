@@ -95,13 +95,33 @@ defmodule PostcodeHuisnummer do
     )
   end
 
-  defp doInflateChunk(z, {:more, chunk}) do
-    chunk <> doInflateChunk(z, :zlib.inflateChunk(z))
+  def unzip_single_file_stream(stream) do
+    Stream.transform(
+      stream,
+      fn ->
+        z = :zlib.open()
+        :zlib.inflateInit(z, -15)
+        {z, {:header, <<>>}}
+      end,
+      fn
+        (data, {z, :data, rest}) ->
+          {[doInflateChunk(z, :zlib.inflateChunk(z, rest <> data))], {z, :data}}
+        (data, {z, :data}) ->
+          {[doInflateChunk(z, :zlib.inflateChunk(z, data))], {z, :data}}
+        (data, {z, {:header, header}}) ->
+          case header <> data do
+            <<0x50,0x4b,0x03,0x04,_::32,8::16-little,_::128,
+              n::16-little,e::16-little,_::binary-size(n),_::binary-size(e),
+              rest::binary>> -> {[], {z, :data, rest}}
+            _ -> {[], {z, {:header, header <> data}}}
+          end
+      end,
+      fn {z, _} -> :zlib.close(z) end
+    )
   end
 
-  defp doInflateChunk(_, chunk) do
-    chunk
-  end
+  defp doInflateChunk(z, {:more, chunk}), do: chunk <> doInflateChunk(z, :zlib.inflateChunk(z))
+  defp doInflateChunk(_, chunk), do: chunk
 
   def split_lines_stream(stream) do
     Stream.transform(
