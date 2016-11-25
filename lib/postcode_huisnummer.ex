@@ -1,3 +1,5 @@
+require Ecto.Query
+
 defmodule PostcodeHuisnummer do
   use Application
 
@@ -29,33 +31,46 @@ defmodule PostcodeHuisnummer do
     :ok
   end
 
-  def import_bag do
-    PostcodeHuisnummer.Repo.delete_all(PostcodeHuisnummer.BagAdres)
+#  @bag_zip_url 'http://localhost/~me/bag.zip'
+  @bag_zip_url 'http://data.nlextract.nl/bag/csv/bag-adressen-laatst.csv.zip'
 
-    File.stream!('bagadres.csv') |>
-      CSV.Decoder.decode(separator: ?;, headers: true) |>
-      Stream.map(
-        fn rec ->
-          rec |>
-            Map.update!("huisnummer", fn x -> String.to_integer(x) end) |>
-            Map.update!("object_id", fn x -> String.to_integer(x) end) |>
-            Map.update!("x", fn x -> Float.parse(x) |> elem(0) end) |>
-            Map.update!("y", fn x -> Float.parse(x) |> elem(0) end) |>
-            Map.update!("lat", fn x -> Float.parse(x) |> elem(0) end) |>
-            Map.update!("lon", fn x -> Float.parse(x) |> elem(0) end) |>
-            Map.put("inserted_at", Ecto.DateTime.from_erl(:calendar.universal_time)) |>
-            Map.put("updated_at", Ecto.DateTime.from_erl(:calendar.universal_time))
-        end) |>
-      Stream.map(
-        fn rec ->
-          for {k, v} <- rec, into: %{}, do: {String.to_atom(k), v}
-        end) |>
-      Stream.chunk(100) |>
-      Stream.each(
-        fn recs ->
-          PostcodeHuisnummer.Repo.insert_all(PostcodeHuisnummer.BagAdres, recs)
-        end) |>
-      Stream.run
+  def import_bag do
+    begin_time = :calendar.local_time
+
+    to_bool = fn "f" -> false; "t" -> true end
+    to_int = fn x -> String.to_integer(x) end
+    to_float = fn x -> Float.parse(x) |> elem(0) end
+
+    {:ok, _} = PostcodeHuisnummer.Repo.query("TRUNCATE TABLE bagadressen_tmp")
+
+    stream_http(@bag_zip_url)
+    |> unzip_single_file_stream
+    |> split_lines_stream
+    |> CSV.Decoder.decode(separator: ?;, headers: true)
+    |> Stream.map(fn rec ->
+      rec
+      |> Map.update!("huisnummer", to_int)
+      |> Map.update!("object_id", to_int)
+      |> Map.update!("x", to_float)
+      |> Map.update!("y", to_float)
+      |> Map.update!("lat", to_float)
+      |> Map.update!("lon", to_float)
+      |> Map.update!("nevenadres", to_bool)
+    end)
+    |> Stream.chunk(1000, 1000, [])
+    |> Stream.each(fn recs ->
+      PostcodeHuisnummer.Repo.insert_all("bagadressen_tmp", recs)
+    end)
+    |> Stream.run
+
+    PostcodeHuisnummer.Repo.transaction(fn ->
+      {:ok, _} = PostcodeHuisnummer.Repo.query("ALTER TABLE bagadressen RENAME TO bagadressen_old")
+      {:ok, _} = PostcodeHuisnummer.Repo.query("TRUNCATE TABLE bagadressen_old")
+      {:ok, _} = PostcodeHuisnummer.Repo.query("ALTER TABLE bagadressen_tmp RENAME TO bagadressen")
+      {:ok, _} = PostcodeHuisnummer.Repo.query("ALTER TABLE bagadressen_old RENAME TO bagadressen_tmp")
+    end)
+
+    :calendar.time_difference(begin_time, :calendar.local_time)
   end
 
   def stream_http(url) do

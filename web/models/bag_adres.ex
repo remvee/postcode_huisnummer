@@ -1,6 +1,8 @@
 defmodule PostcodeHuisnummer.BagAdres do
   use PostcodeHuisnummer.Web, :model
+  alias PostcodeHuisnummer.Repo
 
+  @primary_key false
   schema "bagadressen" do
     field :openbareruimte, :string
     field :huisnummer, :integer
@@ -12,21 +14,15 @@ defmodule PostcodeHuisnummer.BagAdres do
     field :provincie, :string
     field :object_id, :decimal
     field :object_type, :string
-    field :nevenadres, :string
+    field :nevenadres, :boolean
     field :x, :float
     field :y, :float
     field :lon, :float
     field :lat, :float
-
-    timestamps()
   end
 
-  @doc """
-  Builds a changeset based on the `struct` and `params`.
-  """
-  def changeset(struct, params \\ %{}) do
-    struct
-    |> cast(params, [:openbareruimte, :huisnummer, :huisletter, :huisnummertoevoeging, :postcode, :woonplaats, :gemeente, :provincie, :object_id, :object_type, :nevenadres, :x, :y, :lon, :lat])
-    |> validate_required([:openbareruimte, :huisnummer, :huisletter, :huisnummertoevoeging, :postcode, :woonplaats, :gemeente, :provincie, :object_id, :object_type, :nevenadres, :x, :y, :lon, :lat])
+  def by_postcode_huisnummer(postcode, huisnummer) do
+    (from a in __MODULE__, where: a.postcode == ^postcode and a.huisnummer == ^huisnummer)
+    |> Repo.all
   end
 end
