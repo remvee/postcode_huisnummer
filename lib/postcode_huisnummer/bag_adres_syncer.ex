@@ -3,8 +3,8 @@ defmodule PostcodeHuisnummer.BagAdresSyncer do
   alias PostcodeHuisnummer.Repo
 
   #@bag_zip_url 'http://localhost/~me/bag.zip'
-  @bag_zip_url 'http://localhost/~me/bag-adressen-laatst.csv.zip'
-  #@bag_zip_url 'http://data.nlextract.nl/bag/csv/bag-adressen-laatst.csv.zip'
+  #@bag_zip_url 'http://localhost/~me/bag-adressen-laatst.csv.zip'
+  @bag_zip_url 'http://data.nlextract.nl/bag/csv/bag-adressen-laatst.csv.zip'
 
   def start_link do
     GenServer.start_link(__MODULE__, [])
@@ -52,16 +52,54 @@ defmodule PostcodeHuisnummer.BagAdresSyncer do
     ChunkyStreams.stream_http(@bag_zip_url)
     |> ChunkyStreams.unzip_single_file_stream
     |> ChunkyStreams.split_lines_stream
-    |> CSV.Decoder.decode(separator: ?;, headers: true)
-    |> Stream.map(fn rec ->
-      rec
-      |> Map.update!("huisnummer", to_int)
-      |> Map.update!("object_id", to_int)
-      |> Map.update!("x", to_float)
-      |> Map.update!("y", to_float)
-      |> Map.update!("lat", to_float)
-      |> Map.update!("lon", to_float)
-      |> Map.update!("nevenadres", to_bool)
+    |> Stream.transform(false, fn(line, started) ->
+      if started do
+        [
+          openbareruimte,
+          huisnummer,
+          huisletter,
+          huisnummertoevoeging,
+          postcode,
+          woonplaats,
+          gemeente,
+          provincie,
+          object_id,
+          object_type,
+          nevenadres,
+          x,
+          y,
+          lon,
+          lat
+        ] = String.split(line, ";")
+        {
+          [
+            %{
+              openbareruimte: openbareruimte,
+              huisnummer: to_int.(huisnummer),
+              huisletter: huisletter,
+              huisnummertoevoeging: huisnummertoevoeging,
+              postcode: postcode,
+              woonplaats: woonplaats,
+              gemeente: gemeente,
+              provincie: provincie,
+              object_id: to_int.(object_id),
+              object_type: object_type,
+              nevenadres: to_bool.(nevenadres),
+              x: to_float.(x),
+              y: to_float.(y),
+              lon: to_float.(lon),
+              lat: to_float.(lat)
+            }
+          ],
+          true
+        }
+      else
+        if line == "openbareruimte;huisnummer;huisletter;huisnummertoevoeging;postcode;woonplaats;gemeente;provincie;object_id;object_type;nevenadres;x;y;lon;lat" do
+          {[], true}
+        else
+          raise "Malformed CSV"
+        end
+      end
     end)
     |> Stream.chunk(1000, 1000, [])
     |> Stream.each(fn recs ->
