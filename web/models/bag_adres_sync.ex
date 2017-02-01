@@ -1,13 +1,11 @@
-defmodule PostcodeHuisnummer.SyncHistory do
+defmodule PostcodeHuisnummer.BagAdresSync do
   use PostcodeHuisnummer.Web, :model
   alias PostcodeHuisnummer.Repo
 
-  schema "syncs" do
+  schema "bagadressen_syncs" do
     field :last_modified, Ecto.DateTime
     field :started_at, Ecto.DateTime
     field :finished_at, Ecto.DateTime
-
-    timestamps()
   end
 
   @doc """

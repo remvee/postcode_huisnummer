@@ -29,11 +29,11 @@ defmodule PostcodeHuisnummer.BagAdresSyncer do
   end
 
   def sync_if_needed(last_modified) do
-    if PostcodeHuisnummer.SyncHistory.need_sync?(last_modified) do
+    if PostcodeHuisnummer.BagAdresSync.need_sync?(last_modified) do
       started_at = DateTime.utc_now
       fetch_and_insert_modified()
       Repo.insert(
-        %PostcodeHuisnummer.SyncHistory{
+        %PostcodeHuisnummer.BagAdresSync{
           started_at: Ecto.DateTime.cast!(started_at),
           finished_at: Ecto.DateTime.cast!(DateTime.utc_now),
           last_modified: Ecto.DateTime.cast!(last_modified)
