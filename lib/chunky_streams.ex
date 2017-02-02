@@ -82,7 +82,7 @@ defmodule ChunkyStreams do
       "",
       fn chunk, rest ->
         lines = String.split(rest <> chunk, "\n")
-        {Enum.take(lines, Enum.count(lines) - 1), Enum.at(lines, -1)}
+        {Enum.take(lines, Enum.count(lines) - 1), Enum.at(lines, -1, "")}
       end
     )
   end
