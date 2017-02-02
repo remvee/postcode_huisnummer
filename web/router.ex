@@ -18,6 +18,7 @@ defmodule PostcodeHuisnummer.Router do
 
     get "/", PageController, :index
     get "/show", PageController, :show
+    get "/version", PageController, :version
   end
 
   # Other scopes may use custom stacks.
