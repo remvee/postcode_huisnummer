@@ -1,0 +1,9 @@
+<%= render("form.html", action: page_path(@conn, :show), postcode: @postcode, huisnummer: @huisnummer) %>
+
+<%= if Enum.empty?(@bag_adressen) do %>
+  <div class='apology'>
+    Sorry geen adressen bekent met postcode "<%= @postcode %>" en huisnummer "<%= @huisnummer %>".
+  </div>
+<% else %>
+  <%= render("list.html", bag_adressen: @bag_adressen) %>
+<% end %>

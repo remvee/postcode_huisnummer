@@ -1,0 +1,15 @@
+<ul>
+  <%= for bag_adres <- @bag_adressen do %>
+    <li>
+      <div>
+        <%= bag_adres.openbareruimte %>
+        <%= bag_adres.huisnummer %>
+        <%= bag_adres.huisnummertoevoeging %>
+      </div>
+      <div>
+        <%= bag_adres.postcode %>
+        <%= bag_adres.woonplaats %>
+      </div>
+    </li>
+  <% end %>
+</ul>

@@ -22,6 +22,8 @@ defmodule PostcodeHuisnummer.BagAdres do
   end
 
   def by_postcode_huisnummer(postcode, huisnummer) do
+    postcode = postcode |> String.replace(" ", "") |> String.upcase
+    huisnummer = huisnummer |> String.replace(~r{[^\d]}, "") |> String.upcase
     (from a in __MODULE__, where: a.postcode == ^postcode and a.huisnummer == ^huisnummer)
     |> Repo.all
   end

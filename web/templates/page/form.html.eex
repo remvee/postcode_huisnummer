@@ -1,0 +1,11 @@
+<form action='<%= @action %>'>
+  <label>
+    <span>Postcode</span>
+    <input type='text' name='postcode' value='<%= @postcode %>' />
+  </label>
+  <label>
+    <span>Huisnummer</span>
+    <input type='text' name='huisnummer' value='<%= @huisnummer %>' />
+  </label>
+  <button type='submit'>Zoeken</button>
+</form>
