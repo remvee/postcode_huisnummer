@@ -3,9 +3,9 @@ defmodule PostcodeHuisnummer.Repo.Migrations.CreateBagAdresSync do
 
   def change do
     create table(:bagadressen_syncs) do
-      add :last_modified, :datetime
-      add :started_at, :datetime
-      add :finished_at, :datetime
+      add :last_modified, :utc_datetime
+      add :started_at, :utc_datetime
+      add :finished_at, :utc_datetime
     end
   end
 end
