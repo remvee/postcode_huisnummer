@@ -20,4 +20,11 @@ defmodule PostcodeHuisnummer.PageController do
   def version(conn, _params) do
     text(conn, inspect(BagAdresSync.last_modified))
   end
+
+  def versions(conn, _params) do
+    render(
+      conn, "versions.html",
+      bag_adres_syncs: BagAdresSync.latest_first
+    )
+  end
 end

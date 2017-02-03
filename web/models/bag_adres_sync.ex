@@ -17,6 +17,10 @@ defmodule PostcodeHuisnummer.BagAdresSync do
     |> validate_required([:last_modified, :started_at, :finished_at])
   end
 
+  def latest_first do
+    (from a in __MODULE__, order_by: [desc: a.last_modified]) |> Repo.all
+  end
+
   def last_modified do
     rec = (from a in __MODULE__, order_by: [desc: a.last_modified], limit: 1) |> Repo.one
     rec && rec.last_modified
