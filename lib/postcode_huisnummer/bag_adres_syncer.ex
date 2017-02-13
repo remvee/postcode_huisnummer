@@ -36,7 +36,8 @@ defmodule PostcodeHuisnummer.BagAdresSyncer do
         %PostcodeHuisnummer.BagAdresSync{
           started_at: Ecto.DateTime.cast!(started_at),
           finished_at: Ecto.DateTime.cast!(DateTime.utc_now),
-          last_modified: Ecto.DateTime.cast!(last_modified)
+          last_modified: Ecto.DateTime.cast!(last_modified),
+          count: PostcodeHuisnummer.BagAdres.count()
         }
       )
     end

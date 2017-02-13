@@ -1,11 +1,10 @@
 <ul>
   <%= for bag_adres_sync <- @bag_adres_syncs do %>
     <li>
-      <%= bag_adres_sync.started_at %>
+      versie: <%= bag_version(bag_adres_sync) %>
       <br>
-      (versie: <%= bag_adres_sync.last_modified %>)
-      <br>
-      <%= time_difference(bag_adres_sync.started_at, bag_adres_sync.finished_at) %>
+      op: <%= bag_adres_sync.started_at %>
+      (in <%= time_difference(bag_adres_sync.started_at, bag_adres_sync.finished_at) %>)
     </li>
   <% end %>
 </ul>

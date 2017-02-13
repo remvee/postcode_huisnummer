@@ -8,6 +8,21 @@ defmodule PostcodeHuisnummer.PageView do
     )
     minutes = div(seconds, 60)
     hours = div(minutes, 60)
-    "#{hours} uur en #{rem(minutes, 60)} minuten en #{rem(seconds, 60)} seconden"
+    [
+      hours > 0 && "#{hours} uur",
+      rem(minutes, 60) > 0 && "#{rem(minutes, 60)} minuten",
+      rem(seconds, 60) > 0 && "#{rem(seconds, 60)} seconden"
+    ]
+    |> Enum.filter(&(&1))
+    |> Enum.join(" ")
+  end
+
+  def bag_version(sync) do
+    [
+      sync.last_modified,
+      sync.count && "(" <> to_string(sync.count) <> " adressen)",
+    ]
+    |> Enum.filter(&(&1))
+    |> Enum.join(" ")
   end
 end
