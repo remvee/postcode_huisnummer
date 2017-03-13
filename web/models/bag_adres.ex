@@ -27,8 +27,4 @@ defmodule PostcodeHuisnummer.BagAdres do
     (from a in __MODULE__, where: a.postcode == ^postcode and a.huisnummer == ^huisnummer)
     |> Repo.all
   end
-
-  def count do
-    Repo.aggregate(PostcodeHuisnummer.BagAdres, :count, :object_id)
-  end
 end

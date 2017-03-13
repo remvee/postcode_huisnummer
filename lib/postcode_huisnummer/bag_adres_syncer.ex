@@ -31,19 +31,21 @@ defmodule PostcodeHuisnummer.BagAdresSyncer do
   def sync_if_needed(last_modified) do
     if PostcodeHuisnummer.BagAdresSync.need_sync?(last_modified) do
       started_at = DateTime.utc_now
-      fetch_and_insert_modified()
+      n = fetch_and_insert_modified()
       Repo.insert(
         %PostcodeHuisnummer.BagAdresSync{
           started_at: Ecto.DateTime.cast!(started_at),
           finished_at: Ecto.DateTime.cast!(DateTime.utc_now),
           last_modified: Ecto.DateTime.cast!(last_modified),
-          count: PostcodeHuisnummer.BagAdres.count()
+          count: n
         }
       )
     end
   end
 
   def fetch_and_insert_modified do
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+
     to_bool = fn "f" -> false; "t" -> true end
     to_int = fn x -> String.to_integer(x) end
     to_float = fn x -> Float.parse(x) |> elem(0) end
@@ -55,6 +57,7 @@ defmodule PostcodeHuisnummer.BagAdresSyncer do
     |> ChunkyStreams.split_lines_stream
     |> Stream.transform(false, fn(line, started) ->
       if started do
+        Agent.update(counter, fn n -> n + 1 end)
         [
           openbareruimte,
           huisnummer,
@@ -114,5 +117,9 @@ defmodule PostcodeHuisnummer.BagAdresSyncer do
       {:ok, _} = Repo.query("ALTER TABLE bagadressen_tmp RENAME TO bagadressen")
       {:ok, _} = Repo.query("ALTER TABLE bagadressen_old RENAME TO bagadressen_tmp")
     end)
+
+    n = Agent.get(counter, fn n -> n end)
+    Agent.stop(counter)
+    n
   end
 end
